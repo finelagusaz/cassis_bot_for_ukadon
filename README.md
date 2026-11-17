@@ -6,7 +6,7 @@ GitHub Actions 上で SHIORI（YAYA）を呼び出してトークを生成し、
 ## 仕組み
 
 ```
-GitHub Actions (毎時17分, windows-latest)
+cron-job.org（毎時17分）→ GitHub Actions (windows-latest)
   └ sample.py
       ├ shioricaller.exe で shiori/yaya/yaya.dll に OnMastodonTootRequest を送る
       ├ 応答の Value をトーク本文として取り出す
@@ -53,7 +53,7 @@ Actions は実行のたびにセーブデータが消えるため、ランダム
 
 ## メンションへの返事
 
-`reply.py` が5分おきに未処理のメンションを読み、Claude API でカシスの口調の返事を作って返信します（`.github/workflows/reply.yml`）。
+`reply.py` が5分おき（cron-job.org から起動）に未処理のメンションを読み、Claude API でカシスの口調の返事を作って返信します（`.github/workflows/reply.yml`）。
 
 - 口調の見本として、トーク辞書から60件を system prompt に入れています。
 - 返信の公開範囲と CW は相手の投稿に合わせます。
@@ -111,10 +111,21 @@ python tools/check_dic.py
 python -c "import sample; print(sample.get_message())"   # 投稿せずにトークだけ取得
 ```
 
-## 運用上の注意
+## 定期実行の仕組み
 
-- 公開リポジトリでは、60日間コミットが無いと schedule 実行が自動で無効化されます。投稿 workflow の最後で有効化 API を呼んで防いでいますが、もし止まっていたら Actions タブから再度有効化してください。
-- GitHub Actions の schedule は混雑時に数十分遅れたり、まれに実行されなかったりします。
+GitHub Actions の schedule（cron）がこのリポジトリで動かなくなったため、外部サービスの [cron-job.org](https://cron-job.org/) から GitHub API の `workflow_dispatch` を呼んで起動しています。
+workflow 側には `schedule` を書いていません（書くと、GitHub の schedule が動き出したときに二重投稿になります）。
+
+| ジョブ | 間隔 | URL（POST） | Body |
+| --- | --- | --- | --- |
+| 毎時投稿 | 毎時17分 | `https://api.github.com/repos/finelagusaz/cassis_bot_for_ukadon/actions/workflows/sample_yaya.yml/dispatches` | `{"ref":"main"}` |
+| 返事 | 5分おき | `https://api.github.com/repos/finelagusaz/cassis_bot_for_ukadon/actions/workflows/reply.yml/dispatches` | `{"ref":"main","inputs":{"dry_run":"false"}}` |
+
+- ヘッダーは `Authorization: Bearer <token>`、`Accept: application/vnd.github+json`、`Content-Type: application/json` の3つです。
+- トークンは fine-grained personal access token で、対象はこのリポジトリだけ、権限は **Actions: Read and write** だけにしています。
+- 起動に成功すると GitHub は `204` を返します。`401` はトークンの誤りか期限切れ、`404` は URL かトークンの対象リポジトリの誤りです。
+- **トークンには有効期限があります。** 期限が来る前に発行し直し、cron-job.org の2つのジョブのヘッダーを差し替えてください。
+- 返事のジョブで `dry_run` を `"false"` にし忘れると、返事を作るだけで投稿しない DRY_RUN のまま動きます。
 
 ## ライセンス
 

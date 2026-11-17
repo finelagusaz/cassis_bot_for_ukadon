@@ -1,13 +1,10 @@
 name: YAYA Sample
+# GitHub の schedule が動かなくなったため、外部の cron サービス（cron-job.org）から
+# 毎時17分に workflow_dispatch API で起動している（README「定期実行の仕組み」参照）
 on:
-  schedule:
-    # 毎時0分は GitHub 全体が混み合い、遅延や取りこぼしが起きやすいため17分にずらす
-    - cron: '17 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
-  # keepalive ステップで workflow を有効化し直すために必要
-  actions: write
 concurrency:
   group: toot
   cancel-in-progress: false
@@ -30,10 +27,3 @@ jobs:
         run: pip install -r requirements.txt
       - name: Toot
         run: python sample.py
-      # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、
-      # API で有効化し直して無効化タイマーをリセットする（空コミット不要）
-      - name: Keepalive
-        if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/sample_yaya.yml/enable"

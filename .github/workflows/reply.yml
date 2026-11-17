@@ -1,8 +1,7 @@
 name: Reply
+# GitHub の schedule が動かなくなったため、外部の cron サービス（cron-job.org）から
+# 5分おきに workflow_dispatch API で起動している（inputs.dry_run に "false" を渡す）
 on:
-  # GitHub Actions の schedule は最短5分間隔（混雑時は遅れることがある）
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -19,8 +18,6 @@ on:
         default: ''
 permissions:
   contents: read
-  # keepalive ステップで workflow を有効化し直すために必要
-  actions: write
   # Claude API の ID フェデレーション（WIF）で GitHub の OIDC トークンを使うために必要
   id-token: write
 concurrency:
@@ -72,10 +69,3 @@ jobs:
       - name: Reply
         if: ${{ !inputs.auth_check && !inputs.test_message }}
         run: python reply.py
-      # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、
-      # API で有効化し直して無効化タイマーをリセットする
-      - name: Keepalive
-        if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/reply.yml/enable"
