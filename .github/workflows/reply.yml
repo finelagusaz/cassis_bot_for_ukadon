@@ -1,9 +1,8 @@
 name: Reply
 on:
-  # DRY_RUN で返事の出来を確認してから有効にする
   # GitHub Actions の schedule は最短5分間隔（混雑時は遅れることがある）
-  # schedule:
-  #   - cron: '*/5 * * * *'
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
