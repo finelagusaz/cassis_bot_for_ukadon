@@ -17,7 +17,9 @@ GitHub Actions (毎時17分, windows-latest)
 | --- | --- |
 | `.github/workflows/sample_yaya.yml` | 毎時投稿する workflow |
 | `.github/workflows/check.yml` | 辞書チェックと栞の読み込みテスト（push / PR 時） |
+| `.github/workflows/reply.yml` | メンションに返事をする workflow |
 | `sample.py` | 栞の呼び出しと Mastodon への投稿 |
+| `reply.py` | メンションへの返事（Claude API） |
 | `shiori/yaya/OnMastodon.dic` | トーク辞書 |
 | `tools/check_dic.py` | トーク辞書のチェックスクリプト |
 | `shioricaller/` | コマンドラインから SHIORI を呼び出すツール |
@@ -47,6 +49,40 @@ Actions は実行のたびにセーブデータが消えるため、ランダム
 実行が遅れたり手動実行を挟んだりしても番号は1ずつ進むため、重複しません。
 トークを追加・削除すると巡回の順番は変わります（その切り替わり時だけは重複することがあります）。
 ローカル実行など実行番号が無いときは、経過時間（時間単位）で代用します。
+
+## メンションへの返事
+
+`reply.py` が5分おきに未処理のメンションを読み、Claude API でカシスの口調の返事を作って返信します（`.github/workflows/reply.yml`）。
+
+- 口調の見本として、トーク辞書から60件を system prompt に入れています。
+- 返信の公開範囲と CW は相手の投稿に合わせます。
+- 処理したメンションの通知は dismiss します。状態ファイルは持たず、未 dismiss の通知が「未処理」です。
+
+### 必要な Secrets
+
+| 名前 | 内容 |
+| --- | --- |
+| `MASTODON_ACCESS_TOKEN` | `read:accounts` `read:notifications` `write:notifications` `read:statuses` `write:statuses` |
+| `ANTHROPIC_API_KEY` | Claude API のキー |
+
+モデルは既定で `claude-opus-5-5` です。workflow の env に `CLAUDE_MODEL` を足すと変えられます。
+
+### 無限ループ・使いすぎ対策
+
+`reply.py` 冒頭の定数で調整できます。
+
+| 定数 | 既定 | 内容 |
+| --- | --- | --- |
+| `MAX_REPLIES_PER_USER_PER_HOUR` | 5 | 同じ相手への返信は1時間にこの回数まで |
+| `MAX_BOT_POSTS_IN_THREAD` | 6 | 1つのスレッドでカシスが発言する上限 |
+| `MAX_REPLIES_PER_RUN` | 10 | 1回の実行で返信する上限 |
+| `MAX_MENTION_AGE` | 3時間 | これより古いメンションには返事をしない |
+
+bot アカウントからのメンションには返事をしません。
+
+### 動作確認
+
+Actions タブの「Reply」から `Run workflow` を実行すると、既定では DRY_RUN（返事を作ってログに出すだけで、投稿も dismiss もしない）で動きます。
 
 ## ローカルでの確認（Windows）
 

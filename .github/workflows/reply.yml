@@ -1,0 +1,46 @@
+name: Reply
+on:
+  # DRY_RUN で返事の出来を確認してから有効にする
+  # GitHub Actions の schedule は最短5分間隔（混雑時は遅れることがある）
+  # schedule:
+  #   - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '返事を生成して表示するだけで、投稿しない'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  # keepalive ステップで workflow を有効化し直すために必要
+  actions: write
+concurrency:
+  group: reply
+  cancel-in-progress: false
+jobs:
+  reply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: pip install
+        run: pip install -r requirements.txt
+      - name: Reply
+        run: python reply.py
+      # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、
+      # API で有効化し直して無効化タイマーをリセットする
+      - name: Keepalive
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/reply.yml/enable"
