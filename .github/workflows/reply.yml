@@ -14,6 +14,8 @@ permissions:
   contents: read
   # keepalive ステップで workflow を有効化し直すために必要
   actions: write
+  # Claude API の ID フェデレーション（WIF）で GitHub の OIDC トークンを使うために必要
+  id-token: write
 concurrency:
   group: reply
   cancel-in-progress: false
@@ -23,8 +25,12 @@ jobs:
     timeout-minutes: 5
     env:
       MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+      # Claude API には API キーではなく ID フェデレーションで認証する
+      # （ANTHROPIC_API_KEY は空でも WIF より優先されるため、ここでは設定しない）
+      ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+      ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+      ANTHROPIC_IDENTITY_TOKEN_FILE: /tmp/gha-jwt
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -35,6 +41,11 @@ jobs:
           cache: pip
       - name: pip install
         run: pip install -r requirements.txt
+      - name: Fetch GitHub OIDC token
+        run: |
+          curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" \
+            | jq -r .value > "$ANTHROPIC_IDENTITY_TOKEN_FILE"
       - name: Reply
         run: python reply.py
       # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、

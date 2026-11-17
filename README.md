@@ -58,12 +58,21 @@ Actions は実行のたびにセーブデータが消えるため、ランダム
 - 返信の公開範囲と CW は相手の投稿に合わせます。
 - 処理したメンションの通知は dismiss します。状態ファイルは持たず、未 dismiss の通知が「未処理」です。
 
-### 必要な Secrets
+### 必要な Secrets / Variables
 
-| 名前 | 内容 |
-| --- | --- |
-| `MASTODON_ACCESS_TOKEN` | `read:accounts` `read:notifications` `write:notifications` `read:statuses` `write:statuses` |
-| `ANTHROPIC_API_KEY` | Claude API のキー |
+| 種類 | 名前 | 内容 |
+| --- | --- | --- |
+| Secret | `MASTODON_ACCESS_TOKEN` | `read:accounts` `read:notifications` `write:notifications` `read:statuses` `write:statuses` |
+| Variable | `ANTHROPIC_FEDERATION_RULE_ID` | ID フェデレーションのルール ID（`fdrl_...`） |
+| Variable | `ANTHROPIC_ORGANIZATION_ID` | Anthropic の組織 ID（UUID） |
+
+Claude API には API キーを使わず、ID フェデレーション（Workload Identity Federation）で GitHub Actions の OIDC トークンを使って認証します。
+Claude Console の Settings → Workload identity federation で「Connect workload」→「GitHub Actions」を選び、次のように設定します。
+
+- Issuer: `https://token.actions.githubusercontent.com`
+- Audience: `https://api.anthropic.com`
+- Subject: `repo:finelagusaz/cassis_bot_for_ukadon:ref:refs/heads/main`（main ブランチの実行だけに限定。フォークからの PR では認証できない）
+- Scope: `workspace:inference`（Messages API だけ使えれば十分）
 
 モデルは既定で `claude-opus-5-5` です。workflow の env に `CLAUDE_MODEL` を足すと変えられます。
 

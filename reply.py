@@ -115,6 +115,22 @@ def build_system_prompt():
 - 返事の本文だけを出力する。"""
 
 
+VISIBILITY_RANK = {'public': 0, 'unlisted': 1, 'private': 2, 'direct': 3}
+
+
+#返事の文脈に使ってよい投稿だけを残す
+#非公開の投稿の内容が、より広い公開範囲の返事に漏れないようにするため、
+#公開・未収載の投稿と、カシスか相手自身が書いた「返事より閉じていない」投稿だけを使う
+def visible_ancestors(me, ancestors, status):
+	rank = VISIBILITY_RANK.get(status['visibility'], 3)
+	allowed_authors = {me['id'], status['account']['id']}
+	return [
+		s for s in ancestors
+		if s['visibility'] in ('public', 'unlisted')
+		or (s['account']['id'] in allowed_authors and VISIBILITY_RANK.get(s['visibility'], 3) <= rank)
+	]
+
+
 #スレッドを読み、Claude に渡す文章を作る
 def build_user_message(me, ancestors, status):
 	def line(s):
@@ -216,7 +232,8 @@ class Replier:
 		if sum(1 for s in ancestors if s['account']['id'] == self.me['id']) >= MAX_BOT_POSTS_IN_THREAD:
 			return skip('スレッド内での発言上限')
 
-		text = generate_reply(self.client, self.system, build_user_message(self.me, ancestors, status))
+		context_posts = visible_ancestors(self.me, ancestors, status)
+		text = generate_reply(self.client, self.system, build_user_message(self.me, context_posts, status))
 		if text is None:
 			return skip('返事を生成できなかった')
 		reply = f"@{account['acct']} {text}"[:MASTODON_MAX_CHARS]
