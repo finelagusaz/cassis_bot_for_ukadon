@@ -63,11 +63,19 @@ Actions は実行のたびにセーブデータが消えるため、ランダム
 | 種類 | 名前 | 内容 |
 | --- | --- | --- |
 | Secret | `MASTODON_ACCESS_TOKEN` | `read:accounts` `read:notifications` `write:notifications` `read:statuses` `write:statuses` |
+| Secret | `ANTHROPIC_API_KEY` | Claude API のキー |
+
+#### ID フェデレーションに切り替える場合
+
+Variables に次の2つを登録すると、API キーの代わりに ID フェデレーション（Workload Identity Federation）で GitHub Actions の OIDC トークンを使って認証します（`ANTHROPIC_API_KEY` は使われなくなります）。
+
+| 種類 | 名前 | 内容 |
+| --- | --- | --- |
 | Variable | `ANTHROPIC_FEDERATION_RULE_ID` | ID フェデレーションのルール ID（`fdrl_...`） |
 | Variable | `ANTHROPIC_ORGANIZATION_ID` | Anthropic の組織 ID（UUID） |
 
-Claude API には API キーを使わず、ID フェデレーション（Workload Identity Federation）で GitHub Actions の OIDC トークンを使って認証します。
-Claude Console の Settings → Workload identity federation で「Connect workload」→「GitHub Actions」を選び、次のように設定します。
+個人の Console アカウントでは Admin API が使えず、ID フェデレーションの設定もできません。先に Console の Settings → Organization で組織を設定する必要があります。
+設定は Claude Console の Settings → Workload identity federation で「Connect workload」→「GitHub Actions」を選び、次のように行います。
 
 - Issuer: `https://token.actions.githubusercontent.com`
 - Audience: `https://api.anthropic.com`

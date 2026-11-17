@@ -30,8 +30,9 @@ jobs:
     env:
       MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
       DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
-      # Claude API には API キーではなく ID フェデレーションで認証する
-      # （ANTHROPIC_API_KEY は空でも WIF より優先されるため、ここでは設定しない）
+      # Claude API の認証は、Variables に ID フェデレーション（WIF）の設定があればそれを使い、
+      # なければ Secret の ANTHROPIC_API_KEY を使う（後述の2つのステップで切り替える）。
+      # ANTHROPIC_API_KEY は WIF より優先されるため、WIF のときは環境に置かない。
       ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
       ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
       ANTHROPIC_IDENTITY_TOKEN_FILE: /tmp/gha-jwt
@@ -45,7 +46,13 @@ jobs:
           cache: pip
       - name: pip install
         run: pip install -r requirements.txt
+      - name: Use API key
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID == ''
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: echo "ANTHROPIC_API_KEY=$KEY" >> "$GITHUB_ENV"
       - name: Fetch GitHub OIDC token
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != ''
         run: |
           curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" \
