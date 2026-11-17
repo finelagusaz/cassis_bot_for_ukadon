@@ -27,6 +27,8 @@ DRY_RUN = os.getenv('DRY_RUN') == '1'
 # --- 無限ループ・使いすぎ対策 ---
 # 同じ相手への返信は1時間にこの回数まで
 MAX_REPLIES_PER_USER_PER_HOUR = 5
+# 相手が bot のときは、1時間にこの回数まで（bot 同士の応酬で使いすぎないため）
+MAX_REPLIES_PER_BOT_PER_HOUR = 2
 # 1つのスレッドの中でカシスが発言するのはこの回数まで
 MAX_BOT_POSTS_IN_THREAD = 6
 # 1回の実行で返信する上限
@@ -236,11 +238,11 @@ class Replier:
 			return skip('投稿が削除されている')
 		if account['id'] == self.me['id']:
 			return skip('自分自身のメンション')
-		if account.get('bot'):
-			return skip('相手が bot')
 		if self.now - parse_time(status['created_at']) > MAX_MENTION_AGE:
 			return skip('古いメンション')
-		if self.replies_last_hour.get(account['id'], 0) >= MAX_REPLIES_PER_USER_PER_HOUR:
+		# bot は昼夜を問わずすぐ返してくるので、ヒトより上限を絞る
+		limit = MAX_REPLIES_PER_BOT_PER_HOUR if account.get('bot') else MAX_REPLIES_PER_USER_PER_HOUR
+		if self.replies_last_hour.get(account['id'], 0) >= limit:
 			return skip('この相手への1時間あたりの返信上限')
 
 		context = self.mastodon.context(status['id'])
