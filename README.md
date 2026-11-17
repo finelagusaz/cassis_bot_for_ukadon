@@ -20,6 +20,7 @@ GitHub Actions (毎時17分, windows-latest)
 | `.github/workflows/reply.yml` | メンションに返事をする workflow |
 | `sample.py` | 栞の呼び出しと Mastodon への投稿 |
 | `reply.py` | メンションへの返事（Claude API） |
+| `SOUL.md` | 返事に使うカシスの人物設定。書き換えると返事の人格が変わる |
 | `shiori/yaya/OnMastodon.dic` | トーク辞書 |
 | `tools/check_dic.py` | トーク辞書のチェックスクリプト |
 | `shioricaller/` | コマンドラインから SHIORI を呼び出すツール |

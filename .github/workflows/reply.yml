@@ -14,6 +14,10 @@ on:
         description: 'Claude API の認証（ID フェデレーション）だけを確認する（メンションは処理しない）'
         type: boolean
         default: false
+      test_message:
+        description: '試しに返事をさせる文面（「/」区切りで複数）。入れるとメンションは処理しない。ログは公開される'
+        type: string
+        default: ''
 permissions:
   contents: read
   # keepalive ステップで workflow を有効化し直すために必要
@@ -60,8 +64,14 @@ jobs:
       - name: Check Claude auth
         if: inputs.auth_check
         run: python tools/check_claude_auth.py
+      - name: Try reply
+        if: ${{ !inputs.auth_check && inputs.test_message != '' }}
+        env:
+          TEST_MESSAGE_RAW: ${{ inputs.test_message }}
+        # workflow_dispatch の入力は1行なので、「/」区切りを改行に直して渡す
+        run: TEST_MESSAGE="$(printf '%s' "$TEST_MESSAGE_RAW" | tr '/' '\n')" python tools/try_reply.py
       - name: Reply
-        if: ${{ !inputs.auth_check }}
+        if: ${{ !inputs.auth_check && !inputs.test_message }}
         run: python reply.py
       # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、
       # API で有効化し直して無効化タイマーをリセットする
