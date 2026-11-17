@@ -1,0 +1,29 @@
+name: Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    env:
+      PYTHONUTF8: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: pip install
+        run: pip install -r requirements.txt
+      - name: Lint dictionary
+        run: python tools/check_dic.py
+      # 辞書の文法エラーなどで栞が応答を返せない状態を検出する（投稿はしない）
+      - name: Load SHIORI
+        run: python -c "import sample; print(sample.get_message())"
