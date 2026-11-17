@@ -10,6 +10,10 @@ on:
         description: '返事を生成して表示するだけで、投稿しない'
         type: boolean
         default: true
+      auth_check:
+        description: 'Claude API の認証（ID フェデレーション）だけを確認する（メンションは処理しない）'
+        type: boolean
+        default: false
 permissions:
   contents: read
   # keepalive ステップで workflow を有効化し直すために必要
@@ -46,7 +50,11 @@ jobs:
           curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" \
             | jq -r .value > "$ANTHROPIC_IDENTITY_TOKEN_FILE"
+      - name: Check Claude auth
+        if: inputs.auth_check
+        run: python tools/check_claude_auth.py
       - name: Reply
+        if: ${{ !inputs.auth_check }}
         run: python reply.py
       # 公開リポジトリは60日間コミットが無いと schedule が自動で無効化されるため、
       # API で有効化し直して無効化タイマーをリセットする
